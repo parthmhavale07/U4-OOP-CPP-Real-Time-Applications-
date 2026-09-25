@@ -1,0 +1,355 @@
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+class Book {
+private:
+    string isbn;
+    string title;
+    string author;
+    string category;
+    bool available;
+
+public:
+    Book()
+        : available(true) {}
+
+    Book(string i, string t, string a, string c, bool av)
+        : isbn(i), title(t), author(a), category(c), available(av) {}
+
+    string getISBN() const {
+        return isbn;
+    }
+
+    bool isAvailable() const {
+        return available;
+    }
+
+    void display() const {
+        cout << "ISBN       : " << isbn << endl;
+        cout << "Title      : " << title << endl;
+        cout << "Author     : " << author << endl;
+        cout << "Category   : " << category << endl;
+        cout << "Availability: "
+             << (available ? "Available" : "Issued") << endl;
+        cout << "----------------------------------" << endl;
+    }
+
+    void issueBook() {
+        if (available) {
+            available = false;
+            cout << "Book issued successfully." << endl;
+        } else {
+            cout << "Book is already issued." << endl;
+        }
+    }
+
+    void returnBook() {
+        if (!available) {
+            available = true;
+            cout << "Book returned successfully." << endl;
+        } else {
+            cout << "Book is already available." << endl;
+        }
+    }
+
+    void updateDetails(string t, string a, string c) {
+        title = t;
+        author = a;
+        category = c;
+    }
+
+    string toFileString() const {
+        return isbn + "|" + title + "|" + author + "|" +
+               category + "|" + (available ? "1" : "0");
+    }
+
+    static Book fromFileString(const string& line) {
+        stringstream ss(line);
+
+        string i, t, a, c, av;
+
+        getline(ss, i, '|');
+        getline(ss, t, '|');
+        getline(ss, a, '|');
+        getline(ss, c, '|');
+        getline(ss, av, '|');
+
+        return Book(i, t, a, c, av == "1");
+    }
+};
+
+class Library {
+private:
+    vector<Book> books;
+    const string filename = "library.txt";
+
+public:
+    Library() {
+        loadBooks();
+    }
+
+    void loadBooks() {
+        ifstream file(filename);
+
+        if (!file) {
+            return;
+        }
+
+        books.clear();
+
+        string line;
+
+        while (getline(file, line)) {
+            if (!line.empty()) {
+                books.push_back(Book::fromFileString(line));
+            }
+        }
+
+        file.close();
+    }
+
+    void saveBooks() {
+        ofstream file(filename);
+
+        if (!file) {
+            cout << "Unable to open file for writing." << endl;
+            return;
+        }
+
+        for (const auto& book : books) {
+            file << book.toFileString() << endl;
+        }
+
+        file.close();
+    }
+
+    void addBook() {
+        string isbn;
+        string title;
+        string author;
+        string category;
+
+        cout << "\nEnter ISBN: ";
+        cin >> isbn;
+        cin.ignore();
+
+        for (const auto& book : books) {
+            if (book.getISBN() == isbn) {
+                cout << "Book with this ISBN already exists." << endl;
+                return;
+            }
+        }
+
+        cout << "Enter Title: ";
+        getline(cin, title);
+
+        cout << "Enter Author: ";
+        getline(cin, author);
+
+        cout << "Enter Category: ";
+        getline(cin, category);
+
+        books.emplace_back(
+            isbn,
+            title,
+            author,
+            category,
+            true
+        );
+
+        saveBooks();
+
+        cout << "Book added successfully." << endl;
+    }
+
+    void searchBook() {
+        string isbn;
+
+        cout << "\nEnter ISBN to search: ";
+        cin >> isbn;
+
+        for (const auto& book : books) {
+            if (book.getISBN() == isbn) {
+                cout << "\nBook Found!" << endl;
+                book.display();
+                return;
+            }
+        }
+
+        cout << "Book not found." << endl;
+    }
+
+    void issueBook() {
+        string isbn;
+
+        cout << "\nEnter ISBN to issue: ";
+        cin >> isbn;
+
+        for (auto& book : books) {
+            if (book.getISBN() == isbn) {
+                book.issueBook();
+                saveBooks();
+                return;
+            }
+        }
+
+        cout << "Book not found." << endl;
+    }
+
+    void returnBook() {
+        string isbn;
+
+        cout << "\nEnter ISBN to return: ";
+        cin >> isbn;
+
+        for (auto& book : books) {
+            if (book.getISBN() == isbn) {
+                book.returnBook();
+                saveBooks();
+                return;
+            }
+        }
+
+        cout << "Book not found." << endl;
+    }
+
+    void updateBook() {
+        string isbn;
+        string title;
+        string author;
+        string category;
+
+        cout << "\nEnter ISBN to update: ";
+        cin >> isbn;
+        cin.ignore();
+
+        for (auto& book : books) {
+            if (book.getISBN() == isbn) {
+                cout << "Enter New Title: ";
+                getline(cin, title);
+
+                cout << "Enter New Author: ";
+                getline(cin, author);
+
+                cout << "Enter New Category: ";
+                getline(cin, category);
+
+                book.updateDetails(
+                    title,
+                    author,
+                    category
+                );
+
+                saveBooks();
+
+                cout << "Book details updated successfully."
+                     << endl;
+
+                return;
+            }
+        }
+
+        cout << "Book not found." << endl;
+    }
+
+    void availabilityReport() {
+        cout << "\n========== Availability Report =========="
+             << endl;
+
+        if (books.empty()) {
+            cout << "No books available." << endl;
+            return;
+        }
+
+        int availableCount = 0;
+        int issuedCount = 0;
+
+        for (const auto& book : books) {
+            book.display();
+
+            if (book.isAvailable()) {
+                availableCount++;
+            } else {
+                issuedCount++;
+            }
+        }
+
+        cout << "Total Books     : "
+             << books.size() << endl;
+
+        cout << "Available Books : "
+             << availableCount << endl;
+
+        cout << "Issued Books    : "
+             << issuedCount << endl;
+    }
+};
+
+int main() {
+    Library library;
+
+    int choice;
+
+    do {
+        cout << "\n========================================"
+             << endl;
+        cout << "     LIBRARY BOOK MANAGEMENT SYSTEM"
+             << endl;
+        cout << "========================================"
+             << endl;
+
+        cout << "1. Add Book" << endl;
+        cout << "2. Search Book" << endl;
+        cout << "3. Issue Book" << endl;
+        cout << "4. Return Book" << endl;
+        cout << "5. Update Book" << endl;
+        cout << "6. Availability Report" << endl;
+        cout << "7. Exit" << endl;
+
+        cout << "\nEnter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            library.addBook();
+            break;
+
+        case 2:
+            library.searchBook();
+            break;
+
+        case 3:
+            library.issueBook();
+            break;
+
+        case 4:
+            library.returnBook();
+            break;
+
+        case 5:
+            library.updateBook();
+            break;
+
+        case 6:
+            library.availabilityReport();
+            break;
+
+        case 7:
+            cout << "Exiting Library Management System..."
+                 << endl;
+            break;
+
+        default:
+            cout << "Invalid choice. Please try again."
+                 << endl;
+        }
+
+    } while (choice != 7);
+
+    return 0;
+}
